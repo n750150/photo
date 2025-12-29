@@ -382,12 +382,16 @@ function showBlobInfo(blob) {
         });
 
         uploadBtn.addEventListener('click', async () => {
+    console.log('🚀 НАЖАТА КНОПКА ЗАГРУЗКИ');
+    
     if (!photoBlob) {
         showStatus('❌ Фото не выбрано', 'error');
         return;
     }
 
     const url = uploadUrl.value.trim();
+    console.log('📡 URL:', url);
+    
     if (!url) {
         showStatus('❌ Укажите URL Google Apps Script', 'error');
         return;
@@ -403,37 +407,48 @@ function showBlobInfo(blob) {
         const reader = new FileReader();
         reader.onload = async (e) => {
             const base64Photo = e.target.result;
+            console.log('📷 Base64 готов, размер:', base64Photo.length);
 
-            // ОТПРАВЛЯЕМ как JSON для Google Apps Script
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ photo: base64Photo })
-            });
+            const formData = new FormData();
+            formData.append('photo', base64Photo);
+            console.log('📤 FormData создана');
 
-            const result = await response.json();
+            try {
+                console.log('🌐 Отправляю fetch...');
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData
+                });
+                console.log('📥 Ответ получен:', response.status);
 
-            if (result.success) {
-                showStatus('✓ Фото успешно загружено в Google Drive! ID: ' + result.fileId, 'success');
-                photoBlob = null;
-                preview.style.display = 'none';
-                confirmButtonGroup.classList.add('hidden');
-                cameraButtonGroup.classList.remove('hidden');
-                progress.style.display = 'none';
-            } else {
-                showStatus('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
+                const result = await response.json();
+                console.log('✅ Результат:', result);
+
+                if (result.success) {
+                    showStatus('✓ Фото успешно загружено в Google Drive! ID: ' + result.fileId, 'success');
+                    photoBlob = null;
+                    preview.style.display = 'none';
+                    confirmButtonGroup.classList.add('hidden');
+                    cameraButtonGroup.classList.remove('hidden');
+                    progress.style.display = 'none';
+                } else {
+                    showStatus('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
+                }
+            } catch (err) {
+                console.log('❌ Fetch ошибка:', err);
+                showStatus('❌ Ошибка загрузки: ' + err.message, 'error');
             }
+            uploadBtn.disabled = false;
         };
         reader.readAsDataURL(photoBlob);
-
     } catch (error) {
+        console.log('💥 Общая ошибка:', error);
         showStatus('❌ Ошибка: ' + error.message, 'error');
         uploadBtn.disabled = false;
         progress.style.display = 'none';
     }
 });
+
     </script>
 </body>
 </html>
