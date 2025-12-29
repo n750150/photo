@@ -301,31 +301,64 @@
         });
 
         captureBtn.addEventListener('click', () => {
-            if (!video.videoWidth || !video.videoHeight) {
-                showStatus('❌ Видеопоток еще не готов. Подождите.', 'error');
-                return;
+    if (!video.videoWidth || !video.videoHeight) {
+        showStatus('❌ Видеопоток еще не готов. Подождите.', 'error');
+        return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+        console.log('Исходный размер:', Math.round(blob.size / 1024 / 1024 * 10) / 10, 'MB');
+        
+        if (blob.size > 2 * 1024 * 1024) {
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            let { width, height } = canvas;
+            const MAX_WIDTH = 1920;
+            const MAX_HEIGHT = 1080;
+            
+            if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
             }
+            if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+            }
+            
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            tempCtx.drawImage(canvas, 0, 0, width, height);
+            
+            tempCanvas.toBlob((optimizedBlob) => {
+                photoBlob = optimizedBlob;
+                showBlobInfo(optimizedBlob);
+            }, 'image/jpeg', 0.75);
+        } else {
+            photoBlob = blob;
+            showBlobInfo(blob);
+        }
+    }, 'image/jpeg', 0.85);
+});
 
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+function showBlobInfo(blob) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+    };
+    reader.readAsDataURL(blob);
 
-            canvas.toBlob((blob) => {
-                photoBlob = blob;
-                
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                };
-                reader.readAsDataURL(blob);
+    captureButtonGroup.classList.add('hidden');
+    confirmButtonGroup.classList.remove('hidden');
+    const sizeKB = Math.round(blob.size / 1024);
+    showStatus(`✓ Фото готово (${sizeKB} KB)`, 'success');
+}
 
-                captureButtonGroup.classList.add('hidden');
-                confirmButtonGroup.classList.remove('hidden');
-                showStatus('✓ Фото готово к загрузке', 'success');
-
-            }, 'image/jpeg', 0.9);
-        });
 
         stopCameraBtn.addEventListener('click', () => {
             if (stream) {
