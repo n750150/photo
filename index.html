@@ -205,7 +205,7 @@
                 type="text" 
                 id="uploadUrl" 
                 placeholder="https://script.googleapis.com/macros/d/..."
-                value="https://script.google.com/macros/library/d/1NvV1o99nv6iXlPBwd6pz4KzELBpV8YhEDBkf8rEAmavipcqo5t7CAjUi/2"
+                value="https://script.google.com/macros/s/AKfycbzs10dc5huPcYIuRuZ_-BT22tCeh5IFMbDxWYNW8SWrBWBN_SsAOyUn4ihaN61aIgwp/exec"
             >
         </div>
 
@@ -349,62 +349,58 @@
         });
 
         uploadBtn.addEventListener('click', async () => {
-            if (!photoBlob) {
-                showStatus('❌ Фото не выбрано', 'error');
-                return;
-            }
+    if (!photoBlob) {
+        showStatus('❌ Фото не выбрано', 'error');
+        return;
+    }
 
-            const url = uploadUrl.value.trim();
-            if (!url) {
-                showStatus('❌ Укажите URL Google Apps Script', 'error');
-                return;
-            }
+    const url = uploadUrl.value.trim();
+    if (!url) {
+        showStatus('❌ Укажите URL Google Apps Script', 'error');
+        return;
+    }
 
-            uploadBtn.disabled = true;
-            progress.style.display = 'block';
-            progressBar.style.width = '0%';
+    uploadBtn.disabled = true;
+    progress.style.display = 'block';
+    progressBar.style.width = '0%';
 
-            try {
-                showStatus('⬆️ Загружаю фото в Google Drive...', 'info');
+    try {
+        showStatus('⬆️ Загружаю фото в Google Drive...', 'info');
 
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const base64Photo = e.target.result.split(',')[1];
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const base64Photo = e.target.result.split(',')[1];
 
-                    const formData = new FormData();
-                    formData.append('photo', base64Photo);
+            // ОТПРАВЛЯЕМ как JSON для Google Apps Script
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ photo: base64Photo })
+            });
 
-                    try {
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            body: formData
-                        });
+            const result = await response.json();
 
-                        const result = await response.json();
-
-                        if (result.success) {
-                            showStatus('✓ Фото успешно загружено в Google Drive!', 'success');
-                            photoBlob = null;
-                            preview.style.display = 'none';
-                            confirmButtonGroup.classList.add('hidden');
-                            cameraButtonGroup.classList.remove('hidden');
-                            progress.style.display = 'none';
-                        } else {
-                            showStatus('❌ Ошибка: ' + result.error, 'error');
-                        }
-                    } catch (err) {
-                        showStatus('❌ Ошибка загрузки: ' + err.message, 'error');
-                    }
-                    uploadBtn.disabled = false;
-                };
-                reader.readAsDataURL(photoBlob);
-
-            } catch (error) {
-                showStatus('❌ Ошибка: ' + error.message, 'error');
-                uploadBtn.disabled = false;
+            if (result.success) {
+                showStatus('✓ Фото успешно загружено в Google Drive! ID: ' + result.fileId, 'success');
+                photoBlob = null;
+                preview.style.display = 'none';
+                confirmButtonGroup.classList.add('hidden');
+                cameraButtonGroup.classList.remove('hidden');
                 progress.style.display = 'none';
+            } else {
+                showStatus('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
             }
-        });
+        };
+        reader.readAsDataURL(photoBlob);
+
+    } catch (error) {
+        showStatus('❌ Ошибка: ' + error.message, 'error');
+        uploadBtn.disabled = false;
+        progress.style.display = 'none';
+    }
+});
     </script>
 </body>
 </html>
