@@ -402,7 +402,7 @@ function showBlobInfo(blob) {
 
         const reader = new FileReader();
         reader.onload = async (e) => {
-            const base64Photo = e.target.result.split(',')[1];
+            const base64Photo = e.target.result;
 
             // ОТПРАВЛЯЕМ как JSON для Google Apps Script
             const response = await fetch(url, {
