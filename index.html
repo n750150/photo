@@ -300,7 +300,7 @@
             }
         });
 
-        captureBtn.addEventListener('click', () => {
+     <!--    captureBtn.addEventListener('click', () => {
     if (!video.videoWidth || !video.videoHeight) {
         showStatus('❌ Видеопоток еще не готов. Подождите.', 'error');
         return;
@@ -343,7 +343,7 @@
             showBlobInfo(blob);
         }
     }, 'image/jpeg', 0.85);
-});
+}); -->
 
 function showBlobInfo(blob) {
     const reader = new FileReader();
@@ -381,7 +381,7 @@ function showBlobInfo(blob) {
             status.textContent = '';
         });
 
-     <!-- uploadBtn.addEventListener('click', async () => {
+     uploadBtn.addEventListener('click', async () => {
     console.log('🚀 НАЖАТА КНОПКА ЗАГРУЗКИ');
     
     if (!photoBlob) {
@@ -444,7 +444,7 @@ function showBlobInfo(blob) {
         progress.style.display = 'none';
     }
     uploadBtn.disabled = false;
-}); -->
+});
 
     </script>
 </body>
