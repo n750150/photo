@@ -233,7 +233,7 @@
         </div>
 
         <div class="button-group" id="confirmButtonGroup" class="hidden">
-            <button class="btn-primary" id="uploadButton">⬆️ Загрузить в Drive</button>
+            <button class="btn-primary" id="uploadButton">📸 Снять и загрузить</button>
             <button class="btn-secondary" id="retakeButton">Снять ещё</button>
         </div>
     </div>
@@ -300,32 +300,11 @@
             }
         });
 
+// Снять фото (отключено, всё делаем по кнопке загрузки)
 captureBtn.addEventListener('click', () => {
-    if (!video.videoWidth || !video.videoHeight) {
-        showStatus('❌ Видеопоток еще не готов. Подождите.', 'error');
-        return;
-    }
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    canvas.toBlob((blob) => {
-        photoBlob = blob;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            preview.src = e.target.result;
-            preview.style.display = 'block';
-        };
-        reader.readAsDataURL(blob);
-
-        captureButtonGroup.classList.add('hidden');
-        confirmButtonGroup.classList.remove('hidden');
-        showStatus('✓ Фото готово к загрузке', 'success');
-
-    }, 'image/jpeg', 0.85);
+    showStatus('Используйте кнопку "Снять и загрузить".', 'info');
 });
+
 
 function showBlobInfo(blob) {
     const reader = new FileReader();
@@ -363,19 +342,17 @@ function showBlobInfo(blob) {
             status.textContent = '';
         });
 
-     uploadBtn.addEventListener('click', async () => {
-    console.log('🚀 НАЖАТА КНОПКА ЗАГРУЗКИ');
-    
-    if (!photoBlob) {
-        showStatus('❌ Фото не выбрано', 'error');
+    uploadBtn.addEventListener('click', async () => {
+    console.log('🚀 Кнопка Снять и загрузить');
+
+    const url = uploadUrl.value.trim();
+    if (!url) {
+        showStatus('❌ Укажите URL Google Apps Script', 'error');
         return;
     }
 
-    const url = uploadUrl.value.trim();
-    console.log('📡 URL:', url);
-    
-    if (!url) {
-        showStatus('❌ Укажите URL Google Apps Script', 'error');
+    if (!video.videoWidth || !video.videoHeight) {
+        showStatus('❌ Камера еще не готова. Откройте камеру и подождите секунду.', 'error');
         return;
     }
 
@@ -384,49 +361,77 @@ function showBlobInfo(blob) {
     progressBar.style.width = '0%';
 
     try {
-        showStatus('⬆️ Загружаю фото в Google Drive...', 'info');
+        showStatus('📸 Снимаю фото...', 'info');
 
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            // ОТПРАВЛЯЕМ КАК ТЕКСТ - БЕЗ FormData!
-            const base64Photo = e.target.result.split(',')[1]; // Только base64 часть
-            console.log('📷 Base64 чистый размер:', base64Photo.length);
+        // 1) Снять кадр с камеры
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            console.log('🌐 Отправляю fetch как текст...');
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'text/plain',
-                },
-                body: base64Photo  // ЧИСТЫЙ BASE64!
-            });
-            
-            console.log('📥 Ответ получен:', response.status);
-
-            const result = await response.json();
-            console.log('✅ Результат:', result);
-
-            if (result.success) {
-                showStatus('✓ Фото успешно загружено! ID: ' + result.fileId, 'success');
-                photoBlob = null;
-                preview.style.display = 'none';
-                confirmButtonGroup.classList.add('hidden');
-                cameraButtonGroup.classList.remove('hidden');
+        // 2) Получить blob (можно оставить ваш коэффициент сжатия)
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                showStatus('❌ Не удалось получить изображение', 'error');
+                uploadBtn.disabled = false;
                 progress.style.display = 'none';
-            } else {
-                showStatus('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
+                return;
             }
-        };
-        reader.readAsDataURL(photoBlob);
-        
+
+            console.log('Исходный размер:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
+
+            // Превью чисто информативно
+            const readerPreview = new FileReader();
+            readerPreview.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            readerPreview.readAsDataURL(blob);
+
+            // 3) Отправка в Google Script как текст (как мы настроили вчера)
+            showStatus('⬆️ Загружаю фото в Google Drive...', 'info');
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Clean = e.target.result.split(',')[1]; // только base64
+                console.log('📷 Base64 чистый размер:', base64Clean.length);
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: base64Clean
+                    });
+
+                    console.log('📥 Ответ:', response.status);
+                    const result = await response.json();
+                    console.log('✅ Результат:', result);
+
+                    if (result.success) {
+                        showStatus('✓ Фото снято и загружено в Google Drive!', 'success');
+                        progress.style.display = 'none';
+                    } else {
+                        showStatus('❌ Ошибка сервера: ' + (result.error || 'неизвестно'), 'error');
+                    }
+                } catch (err) {
+                    console.log('❌ Fetch ошибка:', err);
+                    showStatus('❌ Ошибка загрузки: ' + err.message, 'error');
+                    progress.style.display = 'none';
+                }
+
+                uploadBtn.disabled = false;
+            };
+
+            reader.readAsDataURL(blob);
+        }, 'image/jpeg', 0.85);
+
     } catch (error) {
         console.log('💥 Общая ошибка:', error);
         showStatus('❌ Ошибка: ' + error.message, 'error');
         uploadBtn.disabled = false;
         progress.style.display = 'none';
     }
-    uploadBtn.disabled = false;
 });
+
 
     </script>
 </body>
